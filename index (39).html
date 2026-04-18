@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Interviewer — Powered by Talvy</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f0f5;
+    --muted: #6b6b80;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* SETUP SCREEN */
+  #setup-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(129,140,248,0.05) 0%, transparent 50%),
+                var(--bg);
+  }
+  .setup-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.5rem;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+  .logo-dot {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-dot svg { width: 16px; height: 16px; fill: white; }
+  .logo-text { font-size: 15px; font-weight: 500; letter-spacing: 0.02em; }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 1px; font-family: 'DM Mono', monospace; }
+
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 2rem; line-height: 1.6; }
+
+  .field { margin-bottom: 1.2rem; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; font-family: 'DM Mono', monospace; }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field select option { background: #1c1c26; }
+  .field textarea { min-height: 80px; resize: vertical; }
+
+  .api-note {
+    background: rgba(99,102,241,0.08);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--accent2);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+  .api-note a { color: var(--accent2); }
+
+  .btn-start {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+  .btn-start:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-start:active { transform: translateY(0); }
+
+  /* INTERVIEW SCREEN */
+  #interview-screen {
+    display: none;
+    min-height: 100vh;
+    background: var(--bg);
+  }
+
+  .interview-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    grid-template-rows: 60px 1fr;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* Header */
+  .header {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .rec-dot {
+    width: 8px; height: 8px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: pulse-red 1.5s infinite;
+  }
+  @keyframes pulse-red { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .header-title { font-size: 14px; font-weight: 500; }
+  .header-sub { font-size: 12px; color: var(--muted); }
+  .progress-wrap { display: flex; align-items: center; gap: 10px; }
+  .progress-bg { width: 120px; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-fg { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.5s ease; }
+  .progress-label { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .btn-end {
+    background: rgba(239,68,68,0.1);
+    color: var(--red);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: background 0.2s;
+  }
+  .btn-end:hover { background: rgba(239,68,68,0.2); }
+
+  /* Video area */
+  .video-area {
+    background: #060609;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  #candidate-video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+  }
+  .video-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    padding: 1.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .candidate-name { font-size: 15px; font-weight: 500; }
+  .candidate-status { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+  /* Mic indicator */
+  .mic-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 6px 12px;
+  }
+  .mic-bars { display: flex; align-items: center; gap: 2px; height: 16px; }
+  .mic-bar {
+    width: 3px;
+    background: var(--green);
+    border-radius: 2px;
+    animation: none;
+    height: 4px;
+    transition: height 0.1s;
+  }
+  .mic-bar.active:nth-child(1) { animation: bar1 0.5s infinite alternate; }
+  .mic-bar.active:nth-child(2) { animation: bar2 0.5s infinite alternate 0.1s; }
+  .mic-bar.active:nth-child(3) { animation: bar3 0.5s infinite alternate 0.2s; }
+  .mic-bar.active:nth-child(4) { animation: bar2 0.5s infinite alternate 0.15s; }
+  .mic-bar.active:nth-child(5) { animation: bar1 0.5s infinite alternate 0.05s; }
+  @keyframes bar1 { from{height:3px} to{height:10px} }
+  @keyframes bar2 { from{height:5px} to{height:14px} }
+  @keyframes bar3 { from{height:4px} to{height:16px} }
+  .mic-label { font-size: 11px; color: rgba(255,255,255,0.7); }
+
+  /* No camera placeholder */
+  .no-cam {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+  }
+  .no-cam-icon { font-size: 48px; opacity: 0.3; }
+  .no-cam-text { font-size: 14px; }
+
+  /* Chat panel */
+  .chat-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .chat-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ai-avatar {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .ai-name { font-size: 14px; font-weight: 500; }
+  .ai-status { font-size: 11px; color: var(--green); }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .msg {
+    max-width: 90%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .msg-ai {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px 14px 14px 14px;
+    align-self: flex-start;
+    color: var(--text);
+  }
+  .msg-user {
+    background: var(--accent);
+    border-radius: 14px 4px 14px 14px;
+    align-self: flex-end;
+    color: white;
+  }
+  .msg-system {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    align-self: center;
+    color: var(--muted);
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 5px 10px;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .typing-indicator {
+    display: flex; gap: 4px; align-items: center; padding: 12px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px 14px 14px 14px;
+    align-self: flex-start;
+    width: fit-content;
+  }
+  .t-dot {
+    width: 6px; height: 6px;
+    background: var(--muted);
+    border-radius: 50%;
+    animation: tdot 1.2s infinite;
+  }
+  .t-dot:nth-child(2) { animation-delay: 0.2s; }
+  .t-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes tdot { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+
+  /* Live transcript */
+  .transcript-bar {
+    border-top: 1px solid var(--border);
+    padding: 10px 14px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .transcript-live { font-size: 12px; color: var(--muted); font-style: italic; flex: 1; line-height: 1.4; }
+  .transcript-live.speaking { color: var(--text); font-style: normal; }
+
+  /* Controls */
+  .controls {
+    border-top: 1px solid var(--border);
+    padding: 12px;
+    display: flex;
+    gap: 8px;
+  }
+  .btn-mic {
+    flex: 1;
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 10px;
+    padding: 10px;
+    color: var(--accent2);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-mic:hover { background: rgba(99,102,241,0.2); }
+  .btn-mic.recording {
+    background: rgba(239,68,68,0.1);
+    border-color: rgba(239,68,68,0.3);
+    color: var(--red);
+  }
+  .btn-send {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: white;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.2s;
+  }
+  .btn-send:hover { opacity: 0.85; }
+
+  /* REPORT SCREEN */
+  #report-screen {
+    display: none;
+    min-height: 100vh;
+    background: var(--bg);
+    padding: 2rem;
+    background: radial-gradient(ellipse at 70% 30%, rgba(99,102,241,0.06) 0%, transparent 60%), var(--bg);
+  }
+  .report-inner { max-width: 700px; margin: 0 auto; }
+  .report-header { margin-bottom: 2rem; }
+  .report-tag {
+    display: inline-block;
+    background: rgba(34,197,94,0.1);
+    color: var(--green);
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 12px;
+  }
+  .report-title { font-size: 26px; font-weight: 500; margin-bottom: 4px; }
+  .report-sub { font-size: 14px; color: var(--muted); }
+
+  .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .metric-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .metric-val { font-size: 28px; font-weight: 300; font-family: 'DM Mono', monospace; }
+  .metric-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .report-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin-bottom: 12px;
+  }
+  .report-card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 1rem; }
+
+  .score-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .score-lbl { font-size: 13px; color: var(--text); flex: 1; }
+  .score-track { flex: 2; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+  .score-num { font-size: 13px; font-family: 'DM Mono', monospace; color: var(--muted); min-width: 32px; text-align: right; }
+
+  .verdict-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 1rem;
+  }
+  .verdict-yes { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .verdict-maybe { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+  .verdict-no { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+  .qa-item { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+  .qa-item:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+  .qa-q { font-size: 12px; color: var(--muted); margin-bottom: 6px; line-height: 1.5; }
+  .qa-a { font-size: 13px; color: var(--text); line-height: 1.6; }
+  .qa-skip { font-size: 12px; color: var(--red); font-style: italic; }
+
+  .raccomandazione-text { font-size: 14px; line-height: 1.7; color: var(--text); }
+
+  .report-actions { display: flex; gap: 10px; margin-top: 1.5rem; }
+  .btn-nuovo {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 20px;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.2s;
+  }
+  .btn-nuovo:hover { border-color: var(--border2); }
+
+  @media (max-width: 768px) {
+    .interview-layout { grid-template-columns: 1fr; grid-template-rows: 60px 280px 1fr; height: auto; min-height: 100vh; }
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .setup-card { padding: 1.5rem; margin: 0; border-radius: 0; min-height: 100vh; }
+    .header { padding: 0 1rem; }
+    .header-title { font-size: 13px; }
+    .progress-bg { width: 80px; }
+    .chat-panel { border-left: none; border-top: 1px solid var(--border); }
+    .main-content { padding: 1rem; }
+    .report-inner { padding: 0; }
+    .modal { border-radius: 12px 12px 0 0; position: fixed; bottom: 0; left: 0; right: 0; max-height: 90vh; }
+    .modal-metrics { grid-template-columns: repeat(2,1fr); }
+    .video-area { min-height: 250px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ SETUP ═══════════════════════════════ -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="logo">
+      <div class="logo-dot">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+      </div>
+      <div>
+        <div class="logo-text">AI Interviewer</div>
+        <div class="logo-sub">powered by <span style="color:#c9a84c;font-weight:600;">talvy</span></div>
+      </div>
+    </div>
+
+    <h1>Configura il colloquio</h1>
+    <p class="subtitle">Inserisci i dati del candidato e la posizione. L'AI condurrà il colloquio in automatico.</p>
+
+    <div class="field">
+      <label>Nome candidato</label>
+      <input type="text" id="s-nome" placeholder="es. Marco Rossi" />
+    </div>
+
+    <div class="field">
+      <label>Livello</label>
+      <select id="s-livello">
+        <option value="junior">Junior (0-2 anni)</option>
+        <option value="mid" selected>Mid (2-5 anni)</option>
+        <option value="senior">Senior (5+ anni)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Note dal CV (opzionale)</label>
+      <textarea id="s-cv" placeholder="es. Esperienza in startup B2B, conosce Salesforce, laurea in economia..."></textarea>
+    </div>
+
+    <div id="pos-selector">
+      <div class="field">
+        <label>Posizione</label>
+        <select id="s-posizione">
+          <option value="sales">Sales Manager</option>
+          <option value="dev">Sviluppatore Full Stack</option>
+          <option value="marketing">Marketing Specialist</option>
+          <option value="cs">Customer Service</option>
+          <option value="hr">HR Recruiter</option>
+          <option value="pm">Product Manager</option>
+        </select>
+      </div>
+    </div>
+    <div id="posizione-info" style="display:none;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:12px 14px;font-size:13px;color:#c9a84c;margin-bottom:1rem;line-height:1.6;"></div>
+    <button class="btn-start" onclick="startInterview()">Avvia colloquio →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ INTERVIEW ═══════════════════════════════ -->
+<div id="interview-screen">
+  <div class="interview-layout">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="rec-dot"></div>
+        <div>
+          <div class="header-title" id="h-nome">Colloquio in corso</div>
+          <div class="header-sub" id="h-pos">—</div>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bg"><div class="progress-fg" id="prog-bar" style="width:0%"></div></div>
+        <div class="progress-label" id="prog-label">0 / 5</div>
+      </div>
+      <button class="btn-end" onclick="endInterview()">Termina</button>
+    </div>
+
+    <!-- Video -->
+    <div class="video-area">
+      <video id="candidate-video" autoplay muted playsinline></video>
+      <div class="no-cam" id="no-cam" style="display:none">
+        <div class="no-cam-icon">📷</div>
+        <div class="no-cam-text">Webcam non disponibile</div>
+      </div>
+      <div class="video-overlay">
+        <div>
+          <div class="candidate-name" id="v-nome">Candidato</div>
+          <div class="candidate-status" id="v-status">In ascolto...</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+          <div id="rec-badge" style="display:none; align-items:center; gap:6px; background:rgba(239,68,68,0.85); border-radius:20px; padding:5px 11px;">
+            <div style="width:7px;height:7px;background:white;border-radius:50%;animation:pulse-red 1s infinite;"></div>
+            <span style="font-size:11px;color:white;font-weight:500;letter-spacing:0.05em;">REC</span>
+          </div>
+          <div class="mic-indicator">
+            <div class="mic-bars">
+              <div class="mic-bar" id="bar1"></div>
+              <div class="mic-bar" id="bar2"></div>
+              <div class="mic-bar" id="bar3"></div>
+              <div class="mic-bar" id="bar4"></div>
+              <div class="mic-bar" id="bar5"></div>
+            </div>
+            <div class="mic-label" id="mic-label">Silenzio</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat panel -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="ai-avatar">🤖</div>
+        <div>
+          <div class="ai-name">Interviewer AI</div>
+          <div class="ai-status">● Online</div>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chat-messages"></div>
+
+      <div class="transcript-bar">
+        <div class="transcript-live" id="transcript-live">Premi il microfono per rispondere...</div>
+      </div>
+
+      <div class="controls">
+        <button class="btn-mic" id="btn-mic" onclick="toggleMic()">
+          <span id="mic-icon">🎤</span>
+          <span id="mic-text">Parla</span>
+        </button>
+        <button class="btn-send" onclick="sendAnswer()">Invia →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ REPORT ═══════════════════════════════ -->
+<div id="report-screen">
+  <div class="report-inner">
+    <div class="report-header">
+      <div class="report-tag">COLLOQUIO COMPLETATO</div>
+      <div class="report-title" id="r-title">Report finale</div>
+      <div class="report-sub" id="r-sub">—</div>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-val" id="r-score">—</div>
+        <div class="metric-lbl">Punteggio</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val" id="r-complete">—</div>
+        <div class="metric-lbl">Risposte date</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val" id="r-avg">—</div>
+        <div class="metric-lbl">Parole / risposta</div>
+      </div>
+    </div>
+
+    <div class="report-card">
+      <h3>Verdetto</h3>
+      <div class="verdict-badge" id="r-verdict">—</div>
+      <p class="raccomandazione-text" id="r-rec">Elaborazione in corso...</p>
+    </div>
+
+    <div class="report-card">
+      <h3>Analisi per area</h3>
+      <div id="r-scores"></div>
+    </div>
+
+    <div class="report-card">
+      <h3>Domande e risposte</h3>
+      <div id="r-qa"></div>
+    </div>
+
+    <div class="report-actions">
+      <button class="btn-nuovo" onclick="resetApp()">Nuovo colloquio</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG — INSERISCI QUI LA TUA API KEY ───────────────────────────────────
+const ANTHROPIC_KEY = 'ANTHROPIC_KEY_HERE';
+const CLOUDINARY_CLOUD = 'dj7jouvyg';
+const ELEVENLABS_KEY = '';
+const ELEVENLABS_VOICE_ID = 'o5tUAYEqld5GJZ1Lv8uC';
+const CLOUDINARY_KEY   = '432554129836433';
+const CLOUDINARY_SECRET = 'EbtErQWKY9uvSqSdL4c1y1nbMs4';
+const HR_EMAIL      = 'mattiatenerelli@gmail.com';
+
+const FIREBASE_DB = 'https://ai-interviewr-6f0fc-default-rtdb.europe-west1.firebasedatabase.app';
+
+// Scrivi su Firebase senza SDK — usa REST API diretta
+// ─── CLOUDINARY UPLOAD ───────────────────────────────────────────────────────
+async function uploadToCloudinary(blob, publicId) {
+  const formData = new FormData();
+  formData.append('file', blob);
+  formData.append('upload_preset', 'colloqui_ai');
+  formData.append('public_id', publicId);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/video/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if (!res.ok) throw new Error('Cloudinary upload failed: ' + res.status);
+  const data = await res.json();
+  return data.secure_url;
+}
+
+async function firebaseWrite(path, data) {
+  try {
+    const res = await fetch(`${FIREBASE_DB}/${path}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (res.ok) console.log('Firebase: salvato!');
+    else console.warn('Firebase error:', await res.text());
+  } catch(e) {
+    console.warn('Firebase write failed:', e);
+  }
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const state = {
+  nome: '',
+  posizione: '',
+  livello: '',
+  cvNote: '',
+  domande: [],
+  risposte: [],
+  currentQ: 0,
+  recognition: null,
+  isRecording: false,
+  currentTranscript: '',
+  stream: null,
+  ruoloPersonalizzato: ''
+};
+
+const DOMANDE = {
+  sales: [
+    "Parlami della tua più grande vittoria commerciale. Come hai convinto un cliente difficile?",
+    "Hai mai perso un deal importante? Cosa hai imparato da quell'esperienza?",
+    "Come gestisci le obiezioni sul prezzo? Cosa fai quando il cliente dice che sei troppo caro?",
+    "Descrivi come costruisci un rapporto di fiducia con un nuovo cliente.",
+    "Dove ti vedi tra 3 anni nel mondo delle vendite e perché hai scelto questa carriera?"
+  ],
+  dev: [
+    "Descrivi il progetto tecnico più complesso che hai gestito. Quali tecnologie hai usato e perché?",
+    "Come affronti un bug critico in produzione? Raccontami un caso reale.",
+    "Hai mai dovuto riscrivere codice legacy? Come ti sei organizzato e cosa hai imparato?",
+    "Come garantisci la qualità del codice nel tuo team? Usi test, code review o altro?",
+    "Come ti tieni aggiornato sulle nuove tecnologie? Hai progetti personali o open source?"
+  ],
+  marketing: [
+    "Parlami di una campagna di marketing che hai creato da zero. Qual è stato il risultato?",
+    "Come misuri il ROI di una campagna di content marketing? Quali metriche usi?",
+    "Hai esperienza con strumenti di marketing automation? Quali hai usato e come li hai sfruttati?",
+    "Raccontami di un lancio prodotto a cui hai partecipato. Qual era la strategia?",
+    "Come ti comporti quando una campagna non porta i risultati attesi?"
+  ],
+  cs: [
+    "Raccontami di un cliente molto arrabbiato che hai gestito con successo. Come hai risolto?",
+    "Come gestisci più richieste urgenti contemporaneamente senza perdere la qualità?",
+    "Hai mai ricevuto feedback molto negativo da un cliente? Come l'hai affrontato?",
+    "Cosa fai quando non conosci la risposta a una domanda tecnica del cliente?",
+    "Come contribuisci al miglioramento dei processi nel tuo team di customer service?"
+  ],
+  hr: [
+    "Come valuti se un candidato è davvero adatto alla cultura aziendale oltre che alle competenze?",
+    "Hai mai dovuto rifiutare un candidato molto qualificato tecnicamente? Come l'hai gestito?",
+    "Come ti comporti quando un manager vuole assumere qualcuno che tu non ritieni idoneo?",
+    "Qual è la tua strategia per ridurre il turnover aziendale? Hai esempi concreti?",
+    "Come gestisci una situazione di conflitto tra dipendenti all'interno del team?"
+  ],
+  pm: [
+    "Raccontami di un prodotto che hai lanciato dall'idea alla release. Qual è stato il processo?",
+    "Come prendi decisioni quando le priorità del business e quelle degli utenti sono in conflitto?",
+    "Descrivi come raccogli e priorizzi i feedback degli utenti. Quali strumenti usi?",
+    "Hai mai dovuto tagliare una funzionalità importante a cui il tuo team teneva molto?",
+    "Come misuri il successo di un prodotto? Quali KPI usi e come li comunichi al board?"
+  ]
+};
+
+// ─── GENERA DOMANDE AI ───────────────────────────────────────────────────────
+async function generaDomandeAI(ruolo, livello, cv) {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 800,
+        system: `Sei un esperto HR. Genera esattamente 5 domande di colloquio di lavoro in italiano per il ruolo specificato. 
+Rispondi SOLO con un array JSON valido, nessun testo aggiuntivo, nessun markdown.
+Esempio: ["Domanda 1?","Domanda 2?","Domanda 3?","Domanda 4?","Domanda 5?"]`,
+        messages: [{
+          role: 'user',
+          content: `Ruolo: ${ruolo}
+Livello: ${livello}
+${cv ? 'Note CV: ' + cv : ''}
+
+Genera 5 domande specifiche per questo ruolo.`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '[]';
+    const domande = JSON.parse(text.trim());
+    if (Array.isArray(domande) && domande.length > 0) return domande;
+  } catch(e) {
+    console.warn('Errore generazione domande AI:', e);
+  }
+  // Fallback domande generiche
+  return [
+    `Parlami della tua esperienza come ${ruolo}.`,
+    `Quali competenze ti rendono adatto al ruolo di ${ruolo}?`,
+    `Descrivi una situazione difficile che hai affrontato nel tuo lavoro.`,
+    `Come gestisci le scadenze e le priorità?`,
+    `Dove ti vedi tra 3 anni nella tua carriera?`
+  ];
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+async function startInterview() {
+  const nome = document.getElementById('s-nome').value.trim();
+  const cv = document.getElementById('s-cv').value.trim();
+
+  if (!nome) { alert('Inserisci il nome del candidato!'); return; }
+
+  // Leggi parametri dal link
+  const params = new URLSearchParams(window.location.search);
+  const aziendaDaLink = params.get('azienda') || 'demo';
+  const posizioneDaLink = params.get('posizione') || '';
+  const ruoloDaLink = params.get('ruolo') || '';
+  const livelloDaLink = params.get('livello') || document.getElementById('s-livello').value;
+
+  state.nome = nome;
+  state.cvNote = cv;
+  state.ruoloPersonalizzato = ruoloDaLink;
+
+  // Se c'è un ID posizione, carica i dati da Firebase
+  if (posizioneDaLink && aziendaDaLink) {
+    try {
+      const posizioneData = await new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', `${FIREBASE_DB}/posizioni/${aziendaDaLink}/${posizioneDaLink}.json`, true);
+        xhr.onload = () => { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { resolve(null); } };
+        xhr.onerror = () => resolve(null);
+        xhr.send();
+      });
+      if (posizioneData) {
+          state.posizione = posizioneData.titolo;
+          state.livello = posizioneData.livello || livelloDaLink;
+          state.posizioneInfo = posizioneData;
+
+          // Usa domande personalizzate o genera con AI
+          if (posizioneData.domande && posizioneData.domande.length > 0) {
+            state.domande = posizioneData.domande;
+          } else {
+            state.domande = await generaDomandeAI(posizioneData.titolo, posizioneData.livello, posizioneData.descrizione);
+          }
+
+          // Mostra info posizione nel setup
+          const infoEl = document.getElementById('posizione-info');
+          if (infoEl) {
+            infoEl.style.display = 'block';
+            infoEl.innerHTML = `
+              <div style="font-weight:500;font-size:15px;margin-bottom:6px;">📋 ${posizioneData.titolo}</div>
+              ${posizioneData.retribuzione ? `<div style="font-size:13px;margin-bottom:3px;">💰 ${posizioneData.retribuzione}</div>` : ''}
+              ${posizioneData.contratto ? `<div style="font-size:13px;margin-bottom:3px;">📄 ${posizioneData.contratto}</div>` : ''}
+              ${posizioneData.sede ? `<div style="font-size:13px;">📍 ${posizioneData.sede}</div>` : ''}
+            `;
+          }
+      }
+    } catch(e) { console.warn('Errore caricamento posizione:', e); }
+  }
+
+  // Fallback se non ha caricato la posizione da Firebase
+  if (!state.posizione) {
+    const pos = ruoloDaLink || document.getElementById('s-posizione')?.value || 'sales';
+    state.posizione = pos;
+    state.livello = livelloDaLink;
+    if (ruoloDaLink) {
+      state.domande = await generaDomandeAI(ruoloDaLink, livelloDaLink, cv);
+    } else {
+      state.domande = DOMANDE[pos] || DOMANDE['sales'];
+    }
+  }
+  state.risposte = [];
+  state.currentQ = 0;
+
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('interview-screen').style.display = 'block';
+  document.getElementById('h-nome').textContent = nome;
+  document.getElementById('h-pos').textContent = document.getElementById('s-posizione').options[document.getElementById('s-posizione').selectedIndex].text;
+  document.getElementById('v-nome').textContent = nome;
+
+  await initCamera();
+  initSpeechRecognition();
+  updateProgress();
+
+  setTimeout(() => askQuestion(true), 800);
+}
+
+async function initCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    state.stream = stream;
+    // Video element mostra solo video (muted per evitare eco)
+    const videoOnly = new MediaStream(stream.getVideoTracks());
+    document.getElementById('candidate-video').srcObject = videoOnly;
+    // Avvia registrazione con video + audio
+    await startRecording();
+  } catch(e) {
+    try {
+      // Prova solo video senza audio (microfono separato)
+      const videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      state.stream = videoStream;
+      document.getElementById('candidate-video').srcObject = videoStream;
+      await startRecording();
+    } catch(e2) {
+      document.getElementById('candidate-video').style.display = 'none';
+      document.getElementById('no-cam').style.display = 'flex';
+    }
+  }
+}
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'it-IT';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    let final = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    if (final) state.currentTranscript += final;
+    const display = state.currentTranscript + interim;
+    const el = document.getElementById('transcript-live');
+    el.textContent = display || 'Sto ascoltando...';
+    el.classList.add('speaking');
+    setMicBars(true);
+  };
+
+  recognition.onend = () => {
+    if (state.isRecording) recognition.start();
+  };
+
+  state.recognition = recognition;
+}
+
+// ─── SPEECH OUTPUT — Best free neural voice ──────────────────────────────────
+// Strategia: prova le voci neurali native del browser in ordine di qualità
+// Su Chrome/Edge Windows ci sono voci Microsoft Neural eccellenti
+// Su Mac c'è Federica/Alice che sono ottime
+// Fallback: voce italiana standard con parametri ottimizzati
+
+let bestVoice = null;
+
+function loadBestVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+
+  // Priorità: voci neurali Microsoft (Windows), poi Apple (Mac), poi Google
+  const priority = [
+    v => v.lang === 'it-IT' && v.name.includes('Neural'),
+    v => v.lang === 'it-IT' && (v.name.includes('Elsa') || v.name.includes('Cosimo')),
+    v => v.lang === 'it-IT' && v.name.includes('Microsoft'),
+    v => v.lang === 'it-IT' && (v.name.includes('Alice') || v.name.includes('Federica') || v.name.includes('Luca')),
+    v => v.lang === 'it-IT' && v.name.includes('Google'),
+    v => v.lang === 'it-IT' && !v.localService,
+    v => v.lang === 'it-IT',
+    v => v.lang.startsWith('it'),
+  ];
+
+  for (const fn of priority) {
+    const found = voices.find(fn);
+    if (found) return found;
+  }
+  return null;
+}
+
+function speak(text) {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis) { resolve(); return; }
+    window.speechSynthesis.cancel();
+
+    // Spezza testo lungo in frasi per evitare il bug Chrome che si ferma dopo 200 caratteri
+    const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
+    let i = 0;
+
+    const speakNext = () => {
+      if (i >= sentences.length) { resolve(); return; }
+      const sentence = sentences[i++].trim();
+      if (!sentence) { speakNext(); return; }
+
+      const utter = new SpeechSynthesisUtterance(sentence);
+      utter.lang = 'it-IT';
+      utter.rate = 0.88;   // leggermente più lento = più naturale
+      utter.pitch = 1.0;
+      utter.volume = 1.0;
+
+      if (!bestVoice) bestVoice = loadBestVoice();
+      if (bestVoice) utter.voice = bestVoice;
+
+      utter.onend = speakNext;
+      utter.onerror = speakNext;
+      // Nota: Web Speech API non supporta AudioContext routing
+      // La voce del browser non può essere catturata dalla registrazione
+      // Per catturare la voce AI serve usare Audio element (ElevenLabs)
+      window.speechSynthesis.speak(utter);
+    };
+
+    speakNext();
+  });
+}
+
+// Carica voci appena disponibili
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = () => { bestVoice = loadBestVoice(); };
+  // Trigger immediato per browser che le caricano subito
+  setTimeout(() => { bestVoice = loadBestVoice(); }, 100);
+}
+
+// ─── REGISTRAZIONE VIDEO + AUDIO ─────────────────────────────────────────────
+let mediaRecorder = null;
+let recordedChunks = [];
+
+// AudioContext globale per mixare mic + voce AI
+let audioCtx = null;
+let audioDestination = null;
+let micSource = null;
+
+async function startRecording() {
+  try {
+    // Crea AudioContext per mixare microfono + voce AI
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioDestination = audioCtx.createMediaStreamDestination();
+
+    // 1. Cattura microfono candidato
+    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micSource = audioCtx.createMediaStreamSource(micStream);
+    micSource.connect(audioDestination);
+
+    // 2. Combina video + audio mixato
+    const videoTrack = state.stream ? state.stream.getVideoTracks()[0] : null;
+    const audioTrack = audioDestination.stream.getAudioTracks()[0];
+
+    const tracks = [];
+    if (videoTrack) tracks.push(videoTrack);
+    if (audioTrack) tracks.push(audioTrack);
+
+    const combined = new MediaStream(tracks);
+    recordedChunks = [];
+
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+      ? 'video/webm;codecs=vp9,opus'
+      : MediaRecorder.isTypeSupported('video/webm')
+      ? 'video/webm'
+      : 'video/mp4';
+
+    mediaRecorder = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 2500000 });
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.start(1000);
+
+    document.getElementById('rec-badge').style.display = 'flex';
+    console.log('✅ Registrazione avviata con audio misto');
+  } catch(e) {
+    console.warn('Registrazione non disponibile:', e);
+  }
+}
+
+// Funzione per collegare audio TTS all'AudioContext recorder
+function connectTTSToRecorder(audioElement) {
+  if (!audioCtx || !audioDestination) return;
+  try {
+    const source = audioCtx.createMediaElementSource(audioElement);
+    source.connect(audioDestination);
+    source.connect(audioCtx.destination); // anche agli speaker
+  } catch(e) {
+    // Ignora se già connesso
+  }
+}
+
+function stopRecordingAndSave(nome) {
+  return new Promise((resolve) => {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') { resolve(); return; }
+    mediaRecorder.onstop = () => {
+      if (recordedChunks.length === 0) { resolve(); return; }
+      const blob = new Blob(recordedChunks, { type: recordedChunks[0].type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+      a.download = `colloquio_${nome.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      resolve();
+    };
+    mediaRecorder.stop();
+  });
+}
+
+// ─── AI QUESTION ─────────────────────────────────────────────────────────────
+async function askQuestion(isFirst) {
+  const chatEl = document.getElementById('chat-messages');
+
+  if (isFirst) {
+    const welcome = `Ciao ${state.nome}! Sono il tuo intervistatore AI. Oggi valutiamo la tua candidatura. Iniziamo con la prima domanda.`;
+    addMsg('ai', welcome);
+    await speak(welcome);
+    await delay(400);
+  }
+
+  showTyping();
+  await delay(600);
+  hideTyping();
+
+  const domanda = state.domande[state.currentQ];
+  addMsg('ai', domanda);
+  updateProgress();
+  setStatus('In ascolto...');
+  await speak(domanda);
+}
+
+// ─── SEND ANSWER ─────────────────────────────────────────────────────────────
+async function sendAnswer() {
+  const risposta = state.currentTranscript.trim() || document.getElementById('transcript-live').textContent;
+  if (!risposta || risposta === 'Premi il microfono per rispondere...' || risposta === 'Sto ascoltando...') {
+    alert('Prima parla o scrivi una risposta!');
+    return;
+  }
+
+  stopMic();
+  addMsg('user', risposta);
+  state.risposte.push({ domanda: state.domande[state.currentQ], risposta });
+  state.currentTranscript = '';
+  document.getElementById('transcript-live').textContent = 'Elaboro la risposta...';
+  document.getElementById('transcript-live').classList.remove('speaking');
+  state.currentQ++;
+
+  if (state.currentQ < state.domande.length) {
+    showTyping();
+    const commento = await getAIComment(state.domande[state.currentQ - 1], risposta);
+    hideTyping();
+    if (commento) {
+      addMsg('ai', commento);
+      await speak(commento);
+      await delay(300);
+    }
+    await askQuestion(false);
+    document.getElementById('transcript-live').textContent = 'Premi il microfono per rispondere...';
+  } else {
+    await finishInterview();
+  }
+}
+
+async function getAIComment(domanda, risposta) {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 120,
+        system: `Sei un intervistatore professionale. Dopo ogni risposta del candidato, fai un brevissimo commento neutro (1 frase, max 20 parole) e poi passa alla domanda successiva. Non valutare positivamente né negativamente in modo esplicito. Sii naturale e professionale. Parla in italiano.${state.posizioneInfo?.istruzioni ? ' Istruzioni speciali: ' + state.posizioneInfo.istruzioni : ''}`,
+        messages: [{ role: 'user', content: `Domanda: "${domanda}"\nRisposta del candidato: "${risposta}"\n\nFai un commento brevissimo di transizione.` }]
+      })
+    });
+    const data = await res.json();
+    return data.content?.[0]?.text || '';
+  } catch(e) { return ''; }
+}
+
+// ─── FINISH & REPORT ─────────────────────────────────────────────────────────
+async function finishInterview() {
+  const fine = `Grazie ${state.nome}, il colloquio è terminato. Sto preparando il report.`;
+  addMsg('ai', fine);
+  await speak(fine);
+  setStatus('Salvataggio in corso...');
+  await delay(800);
+
+  // Ferma registrazione senza scaricare
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    await new Promise(r => { mediaRecorder.onstop = r; mediaRecorder.stop(); });
+  }
+  if (state.stream) state.stream.getTracks().forEach(t => t.stop());
+
+  // Mostra report
+  document.getElementById('interview-screen').style.display = 'none';
+  document.getElementById('report-screen').style.display = 'block';
+
+  // Costruisci dati report
+  const reportData = {
+    nome: state.nome,
+    posizione: state.posizione,
+    livello: state.livello,
+    data: new Date().toISOString(),
+    risposte: state.risposte,
+    score: null,
+    verdetto: null
+  };
+
+  // Upload video su Cloudinary
+  let videoUrl = null;
+  let reportUrl = null;
+  if (recordedChunks.length > 0) {
+    try {
+      const videoBlob = new Blob(recordedChunks, { type: recordedChunks[0].type });
+      const date = new Date().toISOString().slice(0,10);
+      const nomeSafe = state.nome.replace(/\s+/g,'_');
+      const publicId = `colloqui_ai/${date}_${nomeSafe}_${state.posizione}`;
+      videoUrl = await uploadToCloudinary(videoBlob, publicId);
+      console.log('✅ Video su Cloudinary:', videoUrl);
+    } catch(e) { console.warn('Upload Cloudinary fallito:', e); }
+  }
+
+  // Genera report completo
+  await buildReport(reportData, videoUrl, reportUrl);
+
+  // Salva su Firebase UNA SOLA VOLTA con tutti i dati
+  try {
+    const azienda = new URLSearchParams(window.location.search).get('azienda') || 'demo';
+    const nomeSafe = state.nome.replace(/\s+/g,'_').toLowerCase();
+    const timestamp = Date.now();
+    await firebaseWrite(`colloqui/${azienda}/${timestamp}_${nomeSafe}`, {
+      nome: state.nome,
+      posizione: state.posizione,
+      livello: state.livello,
+      data: new Date().toISOString(),
+      score: parseInt(document.getElementById('r-score')?.textContent) || 0,
+      verdetto: document.getElementById('r-verdict')?.textContent || '',
+      videoUrl: videoUrl || '',
+      reportUrl: reportUrl || '',
+      risposte: state.risposte
+    });
+    console.log('✅ Salvato su Firebase!');
+  } catch(e) {
+    console.warn('Firebase write error:', e);
+  }
+
+  // Invia email all'azienda
+  await sendCompanyEmail(videoUrl, reportUrl);
+}
+
+// ─── BUILD REPORT ────────────────────────────────────────────────────────────
+async function buildReport(reportData, videoUrl, reportUrl) {
+  const nome = state.nome;
+  const pos = state.posizioneInfo?.titolo || state.posizione || 'Colloquio';
+
+  document.getElementById('r-title').textContent = `Report — ${nome}`;
+  document.getElementById('r-sub').textContent = `${pos} · ${state.livello || 'mid'}`;
+
+  const risposte = state.risposte || [];
+  const domande = state.domande || [];
+  const complete = risposte.filter(r => r.risposta && r.risposta.length > 15).length;
+  const totalWords = risposte.reduce((acc, r) => acc + (r.risposta || '').split(' ').length, 0);
+  const avgWords = complete > 0 ? Math.round(totalWords / complete) : 0;
+  const total = domande.length || risposte.length || 1;
+  const rawScore = Math.round((complete / total) * 60 + Math.min(40, avgWords * 0.8));
+  const score = Math.min(100, rawScore);
+
+  document.getElementById('r-score').textContent = score + '/100';
+  document.getElementById('r-complete').textContent = complete + '/' + total;
+  document.getElementById('r-avg').textContent = avgWords;
+
+  let verdetto, verdClass, rec;
+  if (score >= 70) {
+    verdetto = '✓ Idoneo — Procedere al colloquio finale';
+    verdClass = 'verdict-yes';
+    rec = `${nome} ha dimostrato buona capacità comunicativa. Si consiglia di procedere con un colloquio approfondito.`;
+  } else if (score >= 45) {
+    verdetto = '⚠ Da valutare — Secondo colloquio consigliato';
+    verdClass = 'verdict-maybe';
+    rec = `${nome} ha risposto in modo parziale. Si consiglia un secondo colloquio prima di decidere.`;
+  } else {
+    verdetto = '✗ Non idoneo — Non procedere';
+    verdClass = 'verdict-no';
+    rec = `${nome} non ha completato il colloquio in modo soddisfacente. Si consiglia di non procedere.`;
+  }
+
+  document.getElementById('r-verdict').textContent = verdetto;
+  document.getElementById('r-verdict').className = 'verdict-badge ' + verdClass;
+  document.getElementById('r-rec').textContent = rec;
+
+  const areas = [
+    { lbl: 'Completezza risposte', val: Math.round((complete / total) * 100), color: '#6366f1' },
+    { lbl: 'Profondità (parole/risposta)', val: Math.min(100, Math.round(avgWords * 2)), color: '#22c55e' },
+    { lbl: 'Partecipazione', val: Math.round((risposte.length / total) * 100), color: '#f59e0b' },
+  ];
+  document.getElementById('r-scores').innerHTML = areas.map(a => `
+    <div class="score-row">
+      <div class="score-lbl">${a.lbl}</div>
+      <div class="score-track"><div class="score-fill" style="width:${a.val}%;background:${a.color}"></div></div>
+      <div class="score-num">${a.val}%</div>
+    </div>`).join('');
+
+  const domandeAll = domande.length > 0 ? domande : risposte.map(r => r.domanda);
+  document.getElementById('r-qa').innerHTML = domandeAll.map((d, i) => {
+    const r = risposte[i];
+    return `<div class="qa-item">
+      <div class="qa-q">D${i+1}. ${d}</div>
+      ${r && r.risposta ? `<div class="qa-a">${r.risposta}</div>` : `<div class="qa-skip">Nessuna risposta</div>`}
+    </div>`;
+  }).join('');
+}
+
+// ─── EMAIL AZIENDA CON LINK PORTALE ──────────────────────────────────────────
+async function sendCompanyEmail(videoUrl, reportUrl) {
+  const nome = state.nome;
+  const pos = document.getElementById('s-posizione')?.options[document.getElementById('s-posizione')?.selectedIndex]?.text || state.posizione;
+  const score = document.getElementById('r-score')?.textContent || '—';
+  const verdetto = document.getElementById('r-verdict')?.textContent || '—';
+  const date = new Date().toLocaleDateString('it-IT');
+  const azienda = new URLSearchParams(window.location.search).get('azienda') || 'demo';
+
+  // Costruisci link portale con dati candidato encoded
+  const candidatoData = btoa(JSON.stringify({
+    nome, posizione: state.posizione, livello: state.livello,
+    data: new Date().toISOString(),
+    score: parseInt(score) || 0,
+    verdetto: verdetto,
+    videoUrl: videoUrl || '',
+    risposte: state.risposte
+  }));
+  const portalLink = `https://portal.talentscreen.it?azienda=${azienda}&candidato=${candidatoData}`;
+
+  const subject = encodeURIComponent(`TalentScreen — Nuovo colloquio: ${nome} — ${pos}`);
+  const body = encodeURIComponent(`Gentile Cliente,
+
+un nuovo colloquio è stato completato sulla piattaforma TalentScreen.
+
+Candidato: ${nome}
+Posizione: ${pos}
+Data: ${date}
+Punteggio: ${score}
+Verdetto: ${verdetto}
+
+Clicca qui per visualizzare il colloquio sul portale TalentScreen:
+${portalLink}
+
+${videoUrl ? `Download registrazione video: ${videoUrl}` : ''}
+
+---
+TalentScreen — Colloqui AI Automatizzati
+www.talentscreen.it`);
+
+  window.open(`mailto:${HR_EMAIL}?subject=${subject}&body=${body}`);
+}
+
+function resetApp() {
+  state.currentQ = 0; state.risposte = []; state.currentTranscript = '';
+  document.getElementById('report-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+
+// ─── MIC CONTROLS ────────────────────────────────────────────────────────────
+function toggleMic() {
+  if (state.isRecording) stopMic();
+  else startMic();
+}
+
+function startMic() {
+  if (!state.recognition) { alert('Il riconoscimento vocale non è supportato dal tuo browser. Prova Chrome!'); return; }
+  state.isRecording = true;
+  state.currentTranscript = '';
+  state.recognition.start();
+  document.getElementById('btn-mic').classList.add('recording');
+  document.getElementById('mic-text').textContent = 'Stop';
+  document.getElementById('mic-icon').textContent = '⏹';
+  document.getElementById('mic-label').textContent = 'Registra';
+  setMicBars(true);
+  setStatus('Stai parlando...');
+}
+
+function stopMic() {
+  if (!state.recognition) return;
+  state.isRecording = false;
+  try { state.recognition.stop(); } catch(e) {}
+  document.getElementById('btn-mic').classList.remove('recording');
+  document.getElementById('mic-text').textContent = 'Parla';
+  document.getElementById('mic-icon').textContent = '🎤';
+  document.getElementById('mic-label').textContent = 'Silenzio';
+  setMicBars(false);
+  setStatus('In ascolto...');
+}
+
+function setMicBars(active) {
+  for (let i = 1; i <= 5; i++) {
+    const bar = document.getElementById('bar' + i);
+    if (active) bar.classList.add('active');
+    else { bar.classList.remove('active'); bar.style.height = '4px'; }
+  }
+}
+
+// ─── UI HELPERS ──────────────────────────────────────────────────────────────
+function addMsg(type, text) {
+  const chat = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `msg msg-${type}`;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+let typingEl = null;
+function showTyping() {
+  const chat = document.getElementById('chat-messages');
+  typingEl = document.createElement('div');
+  typingEl.className = 'typing-indicator';
+  typingEl.innerHTML = '<div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div>';
+  chat.appendChild(typingEl);
+  chat.scrollTop = chat.scrollHeight;
+}
+function hideTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
+
+function updateProgress() {
+  const pct = (state.currentQ / state.domande.length) * 100;
+  document.getElementById('prog-bar').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = state.currentQ + ' / ' + state.domande.length;
+}
+
+function setStatus(txt) { document.getElementById('v-status').textContent = txt; }
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+window.speechSynthesis?.addEventListener('voiceschanged', () => {});
+
+// ─── AUTO-SETUP DA LINK ───────────────────────────────────────────────────────
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const posizione = params.get('posizione');
+  const azienda = params.get('azienda');
+
+  if (posizione && azienda) {
+    // Nascondi selettore posizione e livello
+    const posSelector = document.getElementById('pos-selector');
+    if (posSelector) posSelector.style.display = 'none';
+
+    // Mostra loading info
+    const infoEl = document.getElementById('posizione-info');
+    if (infoEl) {
+      infoEl.style.display = 'block';
+      infoEl.textContent = '⏳ Caricamento posizione...';
+    }
+
+    // Carica dati da Firebase e mostra info
+    const FIREBASE_DB_URL = 'https://ai-interviewr-6f0fc-default-rtdb.europe-west1.firebasedatabase.app';
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', `${FIREBASE_DB_URL}/posizioni/${azienda}/${posizione}.json`, true);
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (data && data.titolo && infoEl) {
+          infoEl.innerHTML = `
+            <div style="font-weight:500;font-size:15px;margin-bottom:6px;">📋 ${data.titolo}</div>
+            ${data.retribuzione ? `<div style="font-size:13px;margin-bottom:3px;">💰 ${data.retribuzione}</div>` : ''}
+            ${data.contratto ? `<div style="font-size:13px;margin-bottom:3px;">📄 ${data.contratto}</div>` : ''}
+            ${data.sede ? `<div style="font-size:13px;">📍 ${data.sede}</div>` : ''}
+          `;
+        }
+      } catch(e) {
+        if (infoEl) infoEl.style.display = 'none';
+      }
+    };
+    xhr.onerror = () => { if (infoEl) infoEl.style.display = 'none'; };
+    xhr.send();
+  }
+})();
+</script>
+</body>
+</html>
