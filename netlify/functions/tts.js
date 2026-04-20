@@ -14,7 +14,9 @@ exports.handler = async (event) => {
   try {
     const { text } = JSON.parse(event.body);
     const KEY = process.env.ELEVENLABS_KEY;
-    const VOICE = 'o5tUAYEqld5GJZ1Lv8uC';
+    
+    // Rachel - voce gratuita disponibile su tutti i piani
+    const VOICE = '21m00Tcm4TlvDq8ikWAM';
 
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}`, {
       method: 'POST',
@@ -26,7 +28,11 @@ exports.handler = async (event) => {
       })
     });
 
-    if (!res.ok) return { statusCode: res.status, body: await res.text() };
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('ElevenLabs error:', res.status, err);
+      return { statusCode: res.status, body: err };
+    }
 
     const buffer = await res.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
@@ -41,6 +47,7 @@ exports.handler = async (event) => {
       isBase64Encoded: true
     };
   } catch(e) {
+    console.error('TTS error:', e);
     return { statusCode: 500, body: e.message };
   }
 };
